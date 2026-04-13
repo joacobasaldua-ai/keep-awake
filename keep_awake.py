@@ -362,8 +362,10 @@ def movimiento_mouse():
     f = fatiga()
     w, h = pyautogui.size()
 
-    # Cuántos tramos hacer: entre 3 y 8 movimientos seguidos
-    n_tramos = int(round(gauss(5, 1.5, 3, 8)))
+    # Cuántos tramos hacer según configuración
+    n_min = max(1, _cfg_n_tramos_med - 2)
+    n_max = _cfg_n_tramos_med + 3
+    n_tramos = int(round(gauss(_cfg_n_tramos_med, 1.5, n_min, n_max)))
 
     for _ in range(n_tramos):
         if detener.is_set():
@@ -377,8 +379,9 @@ def movimiento_mouse():
         nx = int(max(100, min(w - 100, x + dx)))
         ny = int(max(100, min(h - 100, y + dy)))
 
-        # Cada tramo es RÁPIDO: 1-4 segundos
-        dur = rjitter(gauss(2.5 * esc_t * f, 0.8, 1.0, 4.5))
+        # Duración por tramo según configuración
+        dur_max = _cfg_dur_mouse_med * 2.0
+        dur = rjitter(gauss(_cfg_dur_mouse_med * esc_t * f, _cfg_dur_mouse_med * 0.3, _cfg_dur_mouse_med * 0.4, dur_max))
 
         # Tipo de movimiento
         modos      = ["desvio", "overshoot", "directo"]
@@ -621,8 +624,10 @@ def simular_escritura():
     esc_t, _, prob_typo, _ = mood()
     f = fatiga()
 
-    # Frases generadas al vuelo: entre 3 y 8 (más escritura)
-    n_frases = int(round(gauss(5, 1.5, 3, 8)))
+    # Frases generadas al vuelo según configuración
+    n_min_f = max(1, _cfg_n_frases_med - 2)
+    n_max_f = _cfg_n_frases_med + 3
+    n_frases = int(round(gauss(_cfg_n_frases_med, 1.5, n_min_f, n_max_f)))
     # Separador variable: 1 espacio, 2 espacios, o punto+espacio (nunca siempre igual)
     seps  = [" ", " ", "  ", ". ", ", "]
     texto = ""
@@ -634,7 +639,7 @@ def simular_escritura():
     # Probabilidad de typo varía por sesión (3%–18%) — sube con fatiga
     p_typo   = min(0.22, max(0.03, random.gauss(prob_typo * f, 0.03)))
     # Velocidad base de tipeo varía por sesión — más lenta con fatiga
-    vel_base = gauss(0.110 * esc_t * f, 0.025, 0.040, 0.260)
+    vel_base = gauss(_cfg_vel_teclado * esc_t * f, _cfg_vel_teclado * 0.22, _cfg_vel_teclado * 0.35, _cfg_vel_teclado * 2.4)
 
     chars_escritos = 0
     tope = len(texto)
@@ -768,8 +773,7 @@ def _nuevo_target_ventana():
     Promedio global converge a 50%.
     """
     global _ventana_target, _ventana_ciclos, _ventana_duracion
-    # 65/35 entre pico activo (5) y pico pasivo (40) → media ~17%
-    media = 5.0 if random.random() < 0.65 else 40.0
+    media = _cfg_pico_activo if random.random() < _cfg_prob_activo else _cfg_pico_pasivo
     _ventana_target   = max(0.0, min(100.0, random.gauss(media, 22.0)))
     _ventana_ciclos   = 0
     _ventana_duracion = int(round(gauss(25, 8, 15, 45)))
@@ -1078,24 +1082,108 @@ def esperar(segundos):
 # BUCLE PRINCIPAL
 # ─────────────────────────────────────────────
 
-def main():
+def _pedir_int(prompt, minimo, maximo, default):
+    """Pide un entero al usuario con valor por defecto."""
+    while True:
+        try:
+            raw = input(f"  {prompt} [{default}]: ").strip()
+            if raw == "":
+                return default
+            val = int(raw)
+            if minimo <= val <= maximo:
+                return val
+            print(f"  ⚠  Ingresá un número entre {minimo} y {maximo}.")
+        except ValueError:
+            print("  ⚠  Solo números enteros.")
+
+
+def _pedir_float(prompt, minimo, maximo, default):
+    """Pide un float al usuario con valor por defecto."""
+    while True:
+        try:
+            raw = input(f"  {prompt} [{default}]: ").strip()
+            if raw == "":
+                return default
+            val = float(raw)
+            if minimo <= val <= maximo:
+                return val
+            print(f"  ⚠  Ingresá un número entre {minimo} y {maximo}.")
+        except ValueError:
+            print("  ⚠  Solo números.")
+
+
+# Variables globales de configuración (modificadas por el menú)
+_cfg_pico_activo   = 5.0    # % pausa del pico activo
+_cfg_pico_pasivo   = 40.0   # % pausa del pico pasivo
+_cfg_prob_activo   = 0.65   # probabilidad del pico activo
+_cfg_dur_mouse_med = 2.5    # duración media por tramo de mouse (segundos)
+_cfg_n_tramos_med  = 5      # tramos de mouse por acción
+_cfg_vel_teclado   = 0.110  # segundos entre teclas (mayor = más lento = más tiempo)
+_cfg_n_frases_med  = 5      # frases por sesión de escritura
+
+
+def configurar():
+    """Menú interactivo de configuración al arranque."""
+    global _cfg_pico_activo, _cfg_pico_pasivo, _cfg_prob_activo
+    global _cfg_dur_mouse_med, _cfg_n_tramos_med
+    global _cfg_vel_teclado, _cfg_n_frases_med
+
     print("=" * 57)
-    print("  keep_awake.py — Simulador de lectura humana")
-    print("  Plataforma: macOS | pyautogui + pynput")
-    print("-" * 57)
-    print("  Scroll · Flechas · Escritura · Mouse · Combos")
-    print("  Pausas con objetivo normal (mu=55, alta variabilidad)")
-    print()
-    if PYNPUT_DISPONIBLE:
-        print("  Para DETENER: presiona  F10")
-    else:
-        print("  Para DETENER: Ctrl+C  (pynput no instalado)")
-    print("  Emergencia:   mueve el mouse a la esquina sup-izq.")
+    print("  keep_awake — Configuración")
+    print("  (Enter para usar el valor por defecto)")
     print("=" * 57)
     print()
 
+    # ── Pausas ──
+    print("  ── PAUSAS ──────────────────────────────────────────")
+    print("  % actividad promedio deseado (más = más movimiento)")
+    act = _pedir_int("  % actividad (50-95)", 50, 95, 75)
+    # Convertir % actividad → picos bimodales
+    # actividad 75% = pausa 25% → pico activo ~8%, pico pasivo ~42%
+    # actividad 90% = pausa 10% → pico activo ~2%, pico pasivo ~18%
+    pausa_media = 100 - act
+    _cfg_pico_activo  = max(2.0,  pausa_media * 0.35)
+    _cfg_pico_pasivo  = min(80.0, pausa_media * 1.65)
+    _cfg_prob_activo  = 0.65
+
+    print(f"  → Pausas configuradas: ~{pausa_media}% pausa / {act}% actividad")
+    print()
+
+    # ── Mouse ──
+    print("  ── MOUSE ───────────────────────────────────────────")
+    tramos = _pedir_int("  Cantidad de movimientos por acción (2-10)", 2, 10, 5)
+    vel_mouse = _pedir_int("  Velocidad de cada movimiento — 1=muy rápido, 5=lento (1-5)", 1, 5, 2)
+    _cfg_n_tramos_med  = tramos
+    _cfg_dur_mouse_med = [0.8, 1.5, 2.5, 3.5, 5.0][vel_mouse - 1]
+    print(f"  → Mouse: {tramos} movimientos, velocidad {vel_mouse}/5")
+    print()
+
+    # ── Teclado ──
+    print("  ── TECLADO ─────────────────────────────────────────")
+    frases = _pedir_int("  Frases por sesión de escritura (1-12)", 1, 12, 5)
+    vel_keys = _pedir_int("  Velocidad de tipeo — 1=muy rápido, 5=lento (1-5)", 1, 5, 3)
+    _cfg_n_frases_med = frases
+    _cfg_vel_teclado  = [0.040, 0.070, 0.110, 0.160, 0.220][vel_keys - 1]
+    print(f"  → Teclado: {frases} frases, velocidad {vel_keys}/5")
+    print()
+
+    print("=" * 57)
+    print("  ¡Listo! Iniciando en 10 segundos...")
+    print("  Cambiá a la ventana donde querés la actividad.")
+    if PYNPUT_DISPONIBLE:
+        print("  Para DETENER: presiona F10")
+    else:
+        print("  Para DETENER: Ctrl+C")
+    print("  Emergencia: mové el mouse a la esquina sup-izq.")
+    print("=" * 57)
+    print()
+
+
+def main():
+    configurar()
+
     for i in range(10, 0, -1):
-        print(f"  Cambia a tu ventana — iniciando en {i}s...  ", end="\r")
+        print(f"  Iniciando en {i}s...  ", end="\r")
         time.sleep(1)
     print("  Activo. Presiona F10 para detener.               ")
     print()
