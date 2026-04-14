@@ -20,6 +20,12 @@ try:
 except ImportError:
     PYNPUT_DISPONIBLE = False
 
+try:
+    import customtkinter as ctk
+    CTK_DISPONIBLE = True
+except ImportError:
+    CTK_DISPONIBLE = False
+
 # ─────────────────────────────────────────────
 # PYAUTOGUI
 # ─────────────────────────────────────────────
@@ -1020,6 +1026,22 @@ def elegir_accion():
     else:
         _decay_factor = 0.0
 
+    # Respect enabled/disabled toggles
+    _ACCION_MAP = {
+        "mouse": _cfg_mouse_on,
+        "scroll": _cfg_scroll_on,
+        "escritura": _cfg_teclado_on,
+        "teclas": _cfg_teclado_on,
+        "combo": (_cfg_mouse_on or _cfg_scroll_on or _cfg_teclado_on),
+        "click": _cfg_clicks_on,
+        "pestana": True,
+        "nada": True,
+    }
+    if not _ACCION_MAP.get(accion, True):
+        pool2 = [a for a in ACCIONES_BASE if _ACCION_MAP.get(a, True)]
+        if pool2:
+            accion = random.choice(pool2)
+
     _ultimo_accion = accion
     return accion
 
@@ -1082,132 +1104,59 @@ def esperar(segundos):
 # BUCLE PRINCIPAL
 # ─────────────────────────────────────────────
 
-def _pedir_int(prompt, minimo, maximo, default):
-    """Pide un entero al usuario con valor por defecto."""
-    while True:
-        try:
-            raw = input(f"  {prompt} [{default}]: ").strip()
-            if raw == "":
-                return default
-            val = int(raw)
-            if minimo <= val <= maximo:
-                return val
-            print(f"  ⚠  Ingresá un número entre {minimo} y {maximo}.")
-        except ValueError:
-            print("  ⚠  Solo números enteros.")
+# ─────────────────────────────────────────────
+# VARIABLES GLOBALES DE CONFIGURACIÓN
+# ─────────────────────────────────────────────
+_cfg_pico_activo   = 5.0
+_cfg_pico_pasivo   = 40.0
+_cfg_prob_activo   = 0.65
+_cfg_dur_mouse_med = 1.5
+_cfg_n_tramos_med  = 5
+_cfg_vel_teclado   = 0.110
+_cfg_n_frases_med  = 5
+_cfg_mouse_on      = True
+_cfg_scroll_on     = True
+_cfg_teclado_on    = True
+_cfg_clicks_on     = False
+
+# ─────────────────────────────────────────────
+# ESTADO COMPARTIDO PARA LA GUI
+# ─────────────────────────────────────────────
+_estado = {
+    "activo": False,
+    "t_act": 0.0,
+    "t_pau": 0.0,
+    "ciclos": 0,
+    "ultimo_sym": "—",
+    "mood_desc": "—",
+    "elapsed": 0,
+}
+_hilo_automatizacion = None
 
 
-def _pedir_float(prompt, minimo, maximo, default):
-    """Pide un float al usuario con valor por defecto."""
-    while True:
-        try:
-            raw = input(f"  {prompt} [{default}]: ").strip()
-            if raw == "":
-                return default
-            val = float(raw)
-            if minimo <= val <= maximo:
-                return val
-            print(f"  ⚠  Ingresá un número entre {minimo} y {maximo}.")
-        except ValueError:
-            print("  ⚠  Solo números.")
-
-
-# Variables globales de configuración (modificadas por el menú)
-_cfg_pico_activo   = 5.0    # % pausa del pico activo
-_cfg_pico_pasivo   = 40.0   # % pausa del pico pasivo
-_cfg_prob_activo   = 0.65   # probabilidad del pico activo
-_cfg_dur_mouse_med = 2.5    # duración media por tramo de mouse (segundos)
-_cfg_n_tramos_med  = 5      # tramos de mouse por acción
-_cfg_vel_teclado   = 0.110  # segundos entre teclas (mayor = más lento = más tiempo)
-_cfg_n_frases_med  = 5      # frases por sesión de escritura
-
-
-def configurar():
-    """Menú interactivo de configuración al arranque."""
-    global _cfg_pico_activo, _cfg_pico_pasivo, _cfg_prob_activo
-    global _cfg_dur_mouse_med, _cfg_n_tramos_med
+def _loop_automatizacion():
+    """Loop principal que corre en un hilo separado."""
+    global _inicio_global, _cfg_pico_activo, _cfg_pico_pasivo
+    global _cfg_prob_activo, _cfg_dur_mouse_med, _cfg_n_tramos_med
     global _cfg_vel_teclado, _cfg_n_frases_med
+    global _cfg_mouse_on, _cfg_scroll_on, _cfg_teclado_on, _cfg_clicks_on
 
-    print("=" * 57)
-    print("  keep_awake — Configuración")
-    print("  (Enter para usar el valor por defecto)")
-    print("=" * 57)
-    print()
-
-    # ── Pausas ──
-    print("  ── PAUSAS ──────────────────────────────────────────")
-    print("  % actividad promedio deseado (más = más movimiento)")
-    act = _pedir_int("  % actividad (50-95)", 50, 95, 75)
-    # Convertir % actividad → picos bimodales
-    # actividad 75% = pausa 25% → pico activo ~8%, pico pasivo ~42%
-    # actividad 90% = pausa 10% → pico activo ~2%, pico pasivo ~18%
-    pausa_media = 100 - act
-    _cfg_pico_activo  = max(2.0,  pausa_media * 0.35)
-    _cfg_pico_pasivo  = min(80.0, pausa_media * 1.65)
-    _cfg_prob_activo  = 0.65
-
-    print(f"  → Pausas configuradas: ~{pausa_media}% pausa / {act}% actividad")
-    print()
-
-    # ── Mouse ──
-    print("  ── MOUSE ───────────────────────────────────────────")
-    tramos = _pedir_int("  Cantidad de movimientos por acción (2-10)", 2, 10, 5)
-    vel_mouse = _pedir_int("  Velocidad de cada movimiento — 1=muy rápido, 5=lento (1-5)", 1, 5, 2)
-    _cfg_n_tramos_med  = tramos
-    _cfg_dur_mouse_med = [0.8, 1.5, 2.5, 3.5, 5.0][vel_mouse - 1]
-    print(f"  → Mouse: {tramos} movimientos, velocidad {vel_mouse}/5")
-    print()
-
-    # ── Teclado ──
-    print("  ── TECLADO ─────────────────────────────────────────")
-    frases = _pedir_int("  Frases por sesión de escritura (1-12)", 1, 12, 5)
-    vel_keys = _pedir_int("  Velocidad de tipeo — 1=muy rápido, 5=lento (1-5)", 1, 5, 3)
-    _cfg_n_frases_med = frases
-    _cfg_vel_teclado  = [0.040, 0.070, 0.110, 0.160, 0.220][vel_keys - 1]
-    print(f"  → Teclado: {frases} frases, velocidad {vel_keys}/5")
-    print()
-
-    print("=" * 57)
-    print("  ¡Listo! Iniciando en 10 segundos...")
-    print("  Cambiá a la ventana donde querés la actividad.")
-    if PYNPUT_DISPONIBLE:
-        print("  Para DETENER: presiona F10")
-    else:
-        print("  Para DETENER: Ctrl+C")
-    print("  Emergencia: mové el mouse a la esquina sup-izq.")
-    print("=" * 57)
-    print()
-
-
-def main():
-    configurar()
-
-    for i in range(10, 0, -1):
-        print(f"  Iniciando en {i}s...  ", end="\r")
-        time.sleep(1)
-    print("  Activo. Presiona F10 para detener.               ")
-    print()
-
+    detener.clear()
     iniciar_listener()
 
-    global _inicio_global
-    inicio  = time.time()
+    inicio = time.time()
     _inicio_global = inicio
-    t_act   = 0.0
-    t_pau   = 0.0
-    ciclos  = 0
+    t_act  = 0.0
+    t_pau  = 0.0
+    ciclos = 0
 
-    # Break largo: cada ~1 hora, pausa de 1-4 min (baño, café, celular)
     proximo_break = time.time() + gauss(60 * 60, 10 * 60, 45 * 60, 80 * 60)
 
     while not detener.is_set():
         ciclos += 1
 
-        # ── Break largo (humano real se levanta) ────────────────
         if time.time() >= proximo_break:
-            dur_break = gauss(120, 45, 60, 240)  # 1-4 minutos
-            print(f"\n  ☕ Break largo ({dur_break:.0f}s) — "
-                  f"como si fueras al baño o al celular...", end="\r")
+            dur_break = gauss(120, 45, 60, 240)
             t0_break = time.time()
             esperar(dur_break)
             t_pau += time.time() - t0_break
@@ -1215,48 +1164,38 @@ def main():
             if detener.is_set():
                 break
 
-        # Actualizar pyautogui.PAUSE con un valor levemente aleatorio
-        # (rompe la cadencia constante de llamadas a la API)
         pyautogui.PAUSE = random.uniform(0.018, 0.055)
-
-        # Actualizar humor cada N ciclos
         actualizar_mood(ciclos)
 
         elapsed = int(time.time() - inicio)
-        mm, ss  = divmod(elapsed, 60)
         total   = t_act + t_pau
         pct_p   = (t_pau / total * 100) if total > 0 else 50.0
-
         _, _, _, desc_mood = mood()
 
-        # ── Acción ────────────────────────────────────────────
         accion = elegir_accion()
         t0     = time.time()
         sym    = ejecutar_accion(accion)
         dur_accion = time.time() - t0
         t_act += dur_accion
 
+        _estado["t_act"]      = t_act
+        _estado["t_pau"]      = t_pau
+        _estado["ciclos"]     = ciclos
+        _estado["ultimo_sym"] = sym.strip()
+        _estado["mood_desc"]  = desc_mood
+        _estado["elapsed"]    = int(time.time() - inicio)
+
         if detener.is_set():
             break
 
-        # ── Pausa adaptativa ──────────────────────────────────
-        espera, tipo = pausa_lectora(pct_p, dur_accion, t_act, t_pau)
+        espera, _ = pausa_lectora(pct_p, dur_accion, t_act, t_pau)
 
-        print(f"  {mm:02d}:{ss:02d} | #{ciclos:03d} | {sym} | "
-              f"pausa {espera:.0f}s ({tipo}) | {pct_p:.0f}% | {desc_mood}   ",
-              end="\r")
-
-        t0 = time.time()
-
-        # Micro-actividad: umbral variable por ciclo (no siempre 18s)
         umbral_micro = gauss(16, 5, 8, 28)
         prob_micro   = random.uniform(0.30, 0.55)
         if espera > umbral_micro and random.random() < prob_micro and not detener.is_set():
-            frac   = random.uniform(0.28, 0.75)
-            primer = espera * frac
-            resto  = espera * (1 - frac)
-            esperar(primer)
-            t_pau += espera * frac  # solo la espera real cuenta como pausa
+            frac  = random.uniform(0.28, 0.75)
+            esperar(espera * frac)
+            t_pau += espera * frac
             if not detener.is_set():
                 micro_pesos = dirichlet_weights([0.28, 0.26, 0.24, 0.22],
                                                concentracion=random.uniform(4, 8))
@@ -1266,23 +1205,237 @@ def main():
                 )[0]
                 t0_micro = time.time()
                 ejecutar_accion(micro)
-                t_act += time.time() - t0_micro  # micro-actividad cuenta como ACTIVIDAD
-            esperar(resto)
-            t_pau += espera * (1 - frac)  # segunda espera como pausa
+                t_act += time.time() - t0_micro
+            esperar(espera * (1 - frac))
+            t_pau += espera * (1 - frac)
         else:
+            t0p = time.time()
             esperar(espera)
-            t_pau += time.time() - t0
+            t_pau += time.time() - t0p
 
-    # ── Resumen final ──────────────────────────────────────────
-    elapsed = int(time.time() - inicio)
-    mm, ss  = divmod(elapsed, 60)
-    total   = t_act + t_pau
-    pct_p   = (t_pau / total * 100) if total > 0 else 0
-    print()
-    print()
-    print(f"  Detenido (F10). Sesión: {mm:02d}:{ss:02d} | "
-          f"{ciclos} ciclos | {pct_p:.0f}% en pausa.")
-    print("  ¡Hasta luego!")
+        _estado["t_act"]  = t_act
+        _estado["t_pau"]  = t_pau
+        _estado["elapsed"] = int(time.time() - inicio)
+
+    _estado["activo"] = False
+
+
+# ─────────────────────────────────────────────
+# GUI
+# ─────────────────────────────────────────────
+
+def main():
+    if not CTK_DISPONIBLE:
+        # Fallback: terminal simple
+        print("customtkinter no instalado. Corriendo en modo terminal.")
+        print("Instalá con: pip install customtkinter")
+        sys.exit(1)
+
+    ctk.set_appearance_mode("dark")
+    ctk.set_default_color_theme("blue")
+
+    app = ctk.CTk()
+    app.title("Keep Awake")
+    app.geometry("420x680")
+    app.resizable(False, False)
+
+    # ── Título ─────────────────────────────────────────────
+    ctk.CTkLabel(app, text="Keep Awake", font=ctk.CTkFont(size=22, weight="bold")).pack(pady=(18, 2))
+    ctk.CTkLabel(app, text="Simulador de actividad humana", font=ctk.CTkFont(size=12),
+                 text_color="gray").pack(pady=(0, 14))
+
+    # ── Frame principal ────────────────────────────────────
+    frame = ctk.CTkScrollableFrame(app, width=380, height=380)
+    frame.pack(padx=16, pady=0, fill="x")
+
+    # ── Actividad % ────────────────────────────────────────
+    ctk.CTkLabel(frame, text="% Actividad objetivo", font=ctk.CTkFont(weight="bold")).grid(
+        row=0, column=0, sticky="w", padx=10, pady=(10, 0))
+    act_label = ctk.CTkLabel(frame, text="75%")
+    act_label.grid(row=0, column=1, sticky="e", padx=10, pady=(10, 0))
+
+    def on_act_slider(val):
+        v = int(val)
+        act_label.configure(text=f"{v}%")
+
+    act_slider = ctk.CTkSlider(frame, from_=50, to=95, number_of_steps=45, command=on_act_slider)
+    act_slider.set(75)
+    act_slider.grid(row=1, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+
+    # ── Velocidad mouse ─────────────────────────────────────
+    ctk.CTkLabel(frame, text="Velocidad mouse (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
+        row=2, column=0, sticky="w", padx=10, pady=(4, 0))
+    mouse_vel_label = ctk.CTkLabel(frame, text="2")
+    mouse_vel_label.grid(row=2, column=1, sticky="e", padx=10)
+
+    def on_mouse_vel(val):
+        mouse_vel_label.configure(text=str(int(val)))
+
+    mouse_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_mouse_vel)
+    mouse_vel_slider.set(2)
+    mouse_vel_slider.grid(row=3, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+
+    # ── Movimientos por acción ──────────────────────────────
+    ctk.CTkLabel(frame, text="Movimientos de mouse por acción", font=ctk.CTkFont(weight="bold")).grid(
+        row=4, column=0, sticky="w", padx=10, pady=(4, 0))
+    mouse_n_label = ctk.CTkLabel(frame, text="5")
+    mouse_n_label.grid(row=4, column=1, sticky="e", padx=10)
+
+    def on_mouse_n(val):
+        mouse_n_label.configure(text=str(int(val)))
+
+    mouse_n_slider = ctk.CTkSlider(frame, from_=2, to=10, number_of_steps=8, command=on_mouse_n)
+    mouse_n_slider.set(5)
+    mouse_n_slider.grid(row=5, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+
+    # ── Velocidad teclado ───────────────────────────────────
+    ctk.CTkLabel(frame, text="Velocidad teclado (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
+        row=6, column=0, sticky="w", padx=10, pady=(4, 0))
+    keys_vel_label = ctk.CTkLabel(frame, text="3")
+    keys_vel_label.grid(row=6, column=1, sticky="e", padx=10)
+
+    def on_keys_vel(val):
+        keys_vel_label.configure(text=str(int(val)))
+
+    keys_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_keys_vel)
+    keys_vel_slider.set(3)
+    keys_vel_slider.grid(row=7, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+
+    # ── Frases por escritura ────────────────────────────────
+    ctk.CTkLabel(frame, text="Frases por sesión de escritura", font=ctk.CTkFont(weight="bold")).grid(
+        row=8, column=0, sticky="w", padx=10, pady=(4, 0))
+    frases_label = ctk.CTkLabel(frame, text="5")
+    frases_label.grid(row=8, column=1, sticky="e", padx=10)
+
+    def on_frases(val):
+        frases_label.configure(text=str(int(val)))
+
+    frases_slider = ctk.CTkSlider(frame, from_=1, to=12, number_of_steps=11, command=on_frases)
+    frases_slider.set(5)
+    frases_slider.grid(row=9, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+
+    # ── Toggles de acciones ─────────────────────────────────
+    ctk.CTkLabel(frame, text="Acciones habilitadas", font=ctk.CTkFont(weight="bold")).grid(
+        row=10, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+
+    toggle_mouse  = ctk.CTkSwitch(frame, text="Movimiento de mouse")
+    toggle_mouse.select()
+    toggle_mouse.grid(row=11, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+
+    toggle_scroll = ctk.CTkSwitch(frame, text="Scroll")
+    toggle_scroll.select()
+    toggle_scroll.grid(row=12, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+
+    toggle_teclado = ctk.CTkSwitch(frame, text="Teclado / Escritura")
+    toggle_teclado.select()
+    toggle_teclado.grid(row=13, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+
+    toggle_clicks = ctk.CTkSwitch(frame, text="Clicks")
+    toggle_clicks.grid(row=14, column=0, columnspan=2, sticky="w", padx=18, pady=(2, 10))
+
+    frame.grid_columnconfigure(0, weight=1)
+
+    # ── Status box ─────────────────────────────────────────
+    status_frame = ctk.CTkFrame(app, corner_radius=10)
+    status_frame.pack(padx=16, pady=10, fill="x")
+
+    status_label = ctk.CTkLabel(
+        status_frame,
+        text="⏸  Inactivo",
+        font=ctk.CTkFont(size=13),
+        justify="left",
+        anchor="w",
+    )
+    status_label.pack(padx=14, pady=10, fill="x")
+
+    # ── Botón Iniciar / Detener ─────────────────────────────
+    btn = ctk.CTkButton(app, text="▶  INICIAR", height=44,
+                        font=ctk.CTkFont(size=15, weight="bold"),
+                        fg_color="#2a7d4f", hover_color="#1f5e3a")
+    btn.pack(padx=16, pady=(0, 18), fill="x")
+
+    # ── Lógica del botón ────────────────────────────────────
+    def toggle():
+        global _hilo_automatizacion
+        global _cfg_pico_activo, _cfg_pico_pasivo, _cfg_prob_activo
+        global _cfg_dur_mouse_med, _cfg_n_tramos_med
+        global _cfg_vel_teclado, _cfg_n_frases_med
+        global _cfg_mouse_on, _cfg_scroll_on, _cfg_teclado_on, _cfg_clicks_on
+
+        if not _estado["activo"]:
+            # Leer configuración de la GUI
+            act = int(act_slider.get())
+            pausa_media = 100 - act
+            _cfg_pico_activo  = max(2.0, pausa_media * 0.35)
+            _cfg_pico_pasivo  = min(80.0, pausa_media * 1.65)
+            _cfg_prob_activo  = 0.65
+
+            vel_m = int(mouse_vel_slider.get())
+            _cfg_dur_mouse_med = [0.8, 1.5, 2.5, 3.5, 5.0][vel_m - 1]
+            _cfg_n_tramos_med  = int(mouse_n_slider.get())
+
+            vel_k = int(keys_vel_slider.get())
+            _cfg_vel_teclado   = [0.040, 0.070, 0.110, 0.160, 0.220][vel_k - 1]
+            _cfg_n_frases_med  = int(frases_slider.get())
+
+            _cfg_mouse_on   = toggle_mouse.get() == 1
+            _cfg_scroll_on  = toggle_scroll.get() == 1
+            _cfg_teclado_on = toggle_teclado.get() == 1
+            _cfg_clicks_on  = toggle_clicks.get() == 1
+
+            _estado["activo"] = True
+            _estado["t_act"]  = 0.0
+            _estado["t_pau"]  = 0.0
+            _estado["ciclos"] = 0
+            _estado["elapsed"] = 0
+
+            btn.configure(text="⏹  DETENER", fg_color="#8b1a1a", hover_color="#6b1212")
+            status_label.configure(text="⏳  Iniciando en 10 segundos...\n   Cambiá a la ventana activa.")
+
+            _hilo_automatizacion = threading.Thread(target=_iniciar_con_delay, daemon=True)
+            _hilo_automatizacion.start()
+        else:
+            detener.set()
+            _estado["activo"] = False
+            btn.configure(text="▶  INICIAR", fg_color="#2a7d4f", hover_color="#1f5e3a")
+            status_label.configure(text="⏸  Detenido.")
+
+    def _iniciar_con_delay():
+        for i in range(10, 0, -1):
+            if detener.is_set():
+                return
+            app.after(0, lambda i=i: status_label.configure(
+                text=f"⏳  Iniciando en {i}s...\n   Cambiá a la ventana activa."))
+            time.sleep(1)
+        if not detener.is_set():
+            _loop_automatizacion()
+
+    btn.configure(command=toggle)
+
+    # ── Actualizar status periódicamente ───────────────────
+    def actualizar_ui():
+        if _estado["activo"]:
+            t = _estado["elapsed"]
+            mm, ss = divmod(t, 60)
+            total = _estado["t_act"] + _estado["t_pau"]
+            pct_a = ((_estado["t_act"] / total) * 100) if total > 0 else 0
+            sym   = _estado["ultimo_sym"]
+            mdesc = _estado["mood_desc"]
+            status_label.configure(
+                text=f"✅  Activo  |  {mm:02d}:{ss:02d}  |  #{_estado['ciclos']} ciclos\n"
+                     f"   Actividad: {pct_a:.0f}%  |  {sym}\n"
+                     f"   Humor: {mdesc}"
+            )
+        app.after(800, actualizar_ui)
+
+    actualizar_ui()
+
+    def on_close():
+        detener.set()
+        app.destroy()
+
+    app.protocol("WM_DELETE_WINDOW", on_close)
+    app.mainloop()
 
 
 if __name__ == "__main__":

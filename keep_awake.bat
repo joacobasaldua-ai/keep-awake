@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
-python keep_awake.py
+pythonw keep_awake.py
 pause
