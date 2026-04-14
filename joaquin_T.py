@@ -508,14 +508,14 @@ def scroll_suave():
     prob_arriba = 0.50 + bias
     dir_principal = random.choices([-1, 1], weights=[1 - prob_arriba, prob_arriba])[0]
 
-    pasos = int(round(gauss(40 / esc_t, 8, 18, 70)))
+    pasos = int(round(gauss(_cfg_scroll_pasos / esc_t, _cfg_scroll_pasos * 0.20, max(5, int(_cfg_scroll_pasos * 0.45)), min(120, int(_cfg_scroll_pasos * 1.75)))))
 
     # 0–3 puntos de pausa interna en fracciones aleatorias del recorrido
     n_pausas      = random.choices([0, 1, 2, 3], weights=[0.25, 0.40, 0.25, 0.10], k=1)[0]
     puntos_pausa  = set(int(pasos * random.uniform(0.15, 0.90)) for _ in range(n_pausas))
 
     # Velocidad base del tick — más lento para que el scroll dure ~1.5-3s
-    vel_tick = rjitter(gauss(0.18 * esc_t * f, 0.05, 0.08, 0.35))
+    vel_tick = rjitter(gauss(_cfg_scroll_vel * esc_t * f, _cfg_scroll_vel * 0.28, max(0.02, _cfg_scroll_vel * 0.44), min(0.60, _cfg_scroll_vel * 1.94)))
 
     for i in range(pasos):
         if detener.is_set():
@@ -1107,17 +1107,19 @@ def esperar(segundos):
 # ─────────────────────────────────────────────
 # VARIABLES GLOBALES DE CONFIGURACIÓN
 # ─────────────────────────────────────────────
-_cfg_pico_activo   = 5.0
-_cfg_pico_pasivo   = 40.0
-_cfg_prob_activo   = 0.65
-_cfg_dur_mouse_med = 1.5
-_cfg_n_tramos_med  = 5
-_cfg_vel_teclado   = 0.110
-_cfg_n_frases_med  = 5
-_cfg_mouse_on      = True
-_cfg_scroll_on     = True
-_cfg_teclado_on    = True
-_cfg_clicks_on     = False
+_cfg_pico_activo    = 5.0
+_cfg_pico_pasivo    = 40.0
+_cfg_prob_activo    = 0.65
+_cfg_dur_mouse_med  = 1.5
+_cfg_n_tramos_med   = 5
+_cfg_vel_teclado    = 0.110
+_cfg_n_frases_med   = 5
+_cfg_scroll_pasos   = 40    # pasos medios por acción de scroll
+_cfg_scroll_vel     = 0.18  # velocidad base del tick de scroll (s)
+_cfg_mouse_on       = True
+_cfg_scroll_on      = True
+_cfg_teclado_on     = True
+_cfg_clicks_on      = False
 
 # ─────────────────────────────────────────────
 # ESTADO COMPARTIDO PARA LA GUI
@@ -1139,6 +1141,7 @@ def _loop_automatizacion():
     global _inicio_global, _cfg_pico_activo, _cfg_pico_pasivo
     global _cfg_prob_activo, _cfg_dur_mouse_med, _cfg_n_tramos_med
     global _cfg_vel_teclado, _cfg_n_frases_med
+    global _cfg_scroll_pasos, _cfg_scroll_vel
     global _cfg_mouse_on, _cfg_scroll_on, _cfg_teclado_on, _cfg_clicks_on
 
     detener.clear()
@@ -1314,24 +1317,50 @@ def main():
     frases_slider.set(5)
     frases_slider.grid(row=9, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
 
+    # ── Cantidad de scroll ──────────────────────────────────
+    ctk.CTkLabel(frame, text="Cantidad de scroll por acción (pasos)", font=ctk.CTkFont(weight="bold")).grid(
+        row=10, column=0, sticky="w", padx=10, pady=(4, 0))
+    scroll_pasos_label = ctk.CTkLabel(frame, text="40")
+    scroll_pasos_label.grid(row=10, column=1, sticky="e", padx=10)
+
+    def on_scroll_pasos(val):
+        scroll_pasos_label.configure(text=str(int(val)))
+
+    scroll_pasos_slider = ctk.CTkSlider(frame, from_=5, to=100, number_of_steps=19, command=on_scroll_pasos)
+    scroll_pasos_slider.set(40)
+    scroll_pasos_slider.grid(row=11, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+
+    # ── Velocidad de scroll ─────────────────────────────────
+    ctk.CTkLabel(frame, text="Velocidad de scroll (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
+        row=12, column=0, sticky="w", padx=10, pady=(4, 0))
+    scroll_vel_label = ctk.CTkLabel(frame, text="3")
+    scroll_vel_label.grid(row=12, column=1, sticky="e", padx=10)
+
+    def on_scroll_vel(val):
+        scroll_vel_label.configure(text=str(int(val)))
+
+    scroll_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_scroll_vel)
+    scroll_vel_slider.set(3)
+    scroll_vel_slider.grid(row=13, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+
     # ── Toggles de acciones ─────────────────────────────────
     ctk.CTkLabel(frame, text="Acciones habilitadas", font=ctk.CTkFont(weight="bold")).grid(
-        row=10, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+        row=14, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
 
     toggle_mouse  = ctk.CTkSwitch(frame, text="Movimiento de mouse")
     toggle_mouse.select()
-    toggle_mouse.grid(row=11, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+    toggle_mouse.grid(row=15, column=0, columnspan=2, sticky="w", padx=18, pady=2)
 
     toggle_scroll = ctk.CTkSwitch(frame, text="Scroll")
     toggle_scroll.select()
-    toggle_scroll.grid(row=12, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+    toggle_scroll.grid(row=16, column=0, columnspan=2, sticky="w", padx=18, pady=2)
 
     toggle_teclado = ctk.CTkSwitch(frame, text="Teclado / Escritura")
     toggle_teclado.select()
-    toggle_teclado.grid(row=13, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+    toggle_teclado.grid(row=17, column=0, columnspan=2, sticky="w", padx=18, pady=2)
 
     toggle_clicks = ctk.CTkSwitch(frame, text="Clicks")
-    toggle_clicks.grid(row=14, column=0, columnspan=2, sticky="w", padx=18, pady=(2, 10))
+    toggle_clicks.grid(row=18, column=0, columnspan=2, sticky="w", padx=18, pady=(2, 10))
 
     frame.grid_columnconfigure(0, weight=1)
 
@@ -1360,6 +1389,7 @@ def main():
         global _cfg_pico_activo, _cfg_pico_pasivo, _cfg_prob_activo
         global _cfg_dur_mouse_med, _cfg_n_tramos_med
         global _cfg_vel_teclado, _cfg_n_frases_med
+        global _cfg_scroll_pasos, _cfg_scroll_vel
         global _cfg_mouse_on, _cfg_scroll_on, _cfg_teclado_on, _cfg_clicks_on
 
         if not _estado["activo"]:
@@ -1377,6 +1407,10 @@ def main():
             vel_k = int(keys_vel_slider.get())
             _cfg_vel_teclado   = [0.040, 0.070, 0.110, 0.160, 0.220][vel_k - 1]
             _cfg_n_frases_med  = int(frases_slider.get())
+
+            _cfg_scroll_pasos = int(scroll_pasos_slider.get())
+            sv = int(scroll_vel_slider.get())
+            _cfg_scroll_vel   = [0.07, 0.12, 0.18, 0.26, 0.38][sv - 1]
 
             _cfg_mouse_on   = toggle_mouse.get() == 1
             _cfg_scroll_on  = toggle_scroll.get() == 1
