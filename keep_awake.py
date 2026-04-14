@@ -1235,12 +1235,12 @@ def main():
     ctk.set_default_color_theme("blue")
 
     app = ctk.CTk()
-    app.title("Keep Awake")
+    app.title("Joaquin")
     app.geometry("420x680")
     app.resizable(False, False)
 
     # ── Título ─────────────────────────────────────────────
-    ctk.CTkLabel(app, text="Keep Awake", font=ctk.CTkFont(size=22, weight="bold")).pack(pady=(18, 2))
+    ctk.CTkLabel(app, text="Joaquin", font=ctk.CTkFont(size=22, weight="bold")).pack(pady=(18, 2))
     ctk.CTkLabel(app, text="Simulador de actividad humana", font=ctk.CTkFont(size=12),
                  text_color="gray").pack(pady=(0, 14))
 
