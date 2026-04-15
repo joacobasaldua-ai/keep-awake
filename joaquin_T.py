@@ -12,6 +12,8 @@ import signal
 import sys
 import threading
 import math
+import json
+import os
 from statistics import NormalDist
 
 try:
@@ -1105,6 +1107,42 @@ def esperar(segundos):
 # ─────────────────────────────────────────────
 
 # ─────────────────────────────────────────────
+# PERSISTENCIA DE CONFIGURACIÓN
+# ─────────────────────────────────────────────
+_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "joaquin_config.json")
+
+_CFG_DEFAULTS = {
+    "actividad":     75,
+    "mouse_vel":     2,
+    "mouse_n":       5,
+    "keys_vel":      3,
+    "frases":        5,
+    "scroll_pasos":  40,
+    "scroll_vel":    3,
+    "mouse_on":      True,
+    "scroll_on":     True,
+    "teclado_on":    True,
+    "clicks_on":     False,
+}
+
+def guardar_config(cfg: dict):
+    try:
+        with open(_CONFIG_PATH, "w") as f:
+            json.dump(cfg, f, indent=2)
+    except Exception:
+        pass
+
+def cargar_config() -> dict:
+    try:
+        with open(_CONFIG_PATH) as f:
+            data = json.load(f)
+        # Completar con defaults si faltan claves nuevas
+        return {**_CFG_DEFAULTS, **data}
+    except Exception:
+        return dict(_CFG_DEFAULTS)
+
+
+# ─────────────────────────────────────────────
 # VARIABLES GLOBALES DE CONFIGURACIÓN
 # ─────────────────────────────────────────────
 _cfg_pico_activo    = 5.0
@@ -1144,7 +1182,6 @@ def _loop_automatizacion():
     global _cfg_scroll_pasos, _cfg_scroll_vel
     global _cfg_mouse_on, _cfg_scroll_on, _cfg_teclado_on, _cfg_clicks_on
 
-    detener.clear()
     iniciar_listener()
 
     inicio = time.time()
@@ -1242,6 +1279,9 @@ def main():
     app.geometry("420x680")
     app.resizable(False, False)
 
+    # ── Cargar configuración guardada ──────────────────────
+    _cfg_saved = cargar_config()
+
     # ── Título ─────────────────────────────────────────────
     ctk.CTkLabel(app, text="Joaquin", font=ctk.CTkFont(size=22, weight="bold")).pack(pady=(18, 2))
     ctk.CTkLabel(app, text="Simulador de actividad humana", font=ctk.CTkFont(size=12),
@@ -1254,7 +1294,7 @@ def main():
     # ── Actividad % ────────────────────────────────────────
     ctk.CTkLabel(frame, text="% Actividad objetivo", font=ctk.CTkFont(weight="bold")).grid(
         row=0, column=0, sticky="w", padx=10, pady=(10, 0))
-    act_label = ctk.CTkLabel(frame, text="75%")
+    act_label = ctk.CTkLabel(frame, text=f"{_cfg_saved['actividad']}%")
     act_label.grid(row=0, column=1, sticky="e", padx=10, pady=(10, 0))
 
     def on_act_slider(val):
@@ -1262,85 +1302,85 @@ def main():
         act_label.configure(text=f"{v}%")
 
     act_slider = ctk.CTkSlider(frame, from_=50, to=95, number_of_steps=45, command=on_act_slider)
-    act_slider.set(75)
+    act_slider.set(_cfg_saved["actividad"])
     act_slider.grid(row=1, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
 
     # ── Velocidad mouse ─────────────────────────────────────
     ctk.CTkLabel(frame, text="Velocidad mouse (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
         row=2, column=0, sticky="w", padx=10, pady=(4, 0))
-    mouse_vel_label = ctk.CTkLabel(frame, text="2")
+    mouse_vel_label = ctk.CTkLabel(frame, text=str(_cfg_saved["mouse_vel"]))
     mouse_vel_label.grid(row=2, column=1, sticky="e", padx=10)
 
     def on_mouse_vel(val):
         mouse_vel_label.configure(text=str(int(val)))
 
     mouse_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_mouse_vel)
-    mouse_vel_slider.set(2)
+    mouse_vel_slider.set(_cfg_saved["mouse_vel"])
     mouse_vel_slider.grid(row=3, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
 
     # ── Movimientos por acción ──────────────────────────────
     ctk.CTkLabel(frame, text="Movimientos de mouse por acción", font=ctk.CTkFont(weight="bold")).grid(
         row=4, column=0, sticky="w", padx=10, pady=(4, 0))
-    mouse_n_label = ctk.CTkLabel(frame, text="5")
+    mouse_n_label = ctk.CTkLabel(frame, text=str(_cfg_saved["mouse_n"]))
     mouse_n_label.grid(row=4, column=1, sticky="e", padx=10)
 
     def on_mouse_n(val):
         mouse_n_label.configure(text=str(int(val)))
 
     mouse_n_slider = ctk.CTkSlider(frame, from_=2, to=10, number_of_steps=8, command=on_mouse_n)
-    mouse_n_slider.set(5)
+    mouse_n_slider.set(_cfg_saved["mouse_n"])
     mouse_n_slider.grid(row=5, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
 
     # ── Velocidad teclado ───────────────────────────────────
     ctk.CTkLabel(frame, text="Velocidad teclado (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
         row=6, column=0, sticky="w", padx=10, pady=(4, 0))
-    keys_vel_label = ctk.CTkLabel(frame, text="3")
+    keys_vel_label = ctk.CTkLabel(frame, text=str(_cfg_saved["keys_vel"]))
     keys_vel_label.grid(row=6, column=1, sticky="e", padx=10)
 
     def on_keys_vel(val):
         keys_vel_label.configure(text=str(int(val)))
 
     keys_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_keys_vel)
-    keys_vel_slider.set(3)
+    keys_vel_slider.set(_cfg_saved["keys_vel"])
     keys_vel_slider.grid(row=7, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
 
     # ── Frases por escritura ────────────────────────────────
     ctk.CTkLabel(frame, text="Frases por sesión de escritura", font=ctk.CTkFont(weight="bold")).grid(
         row=8, column=0, sticky="w", padx=10, pady=(4, 0))
-    frases_label = ctk.CTkLabel(frame, text="5")
+    frases_label = ctk.CTkLabel(frame, text=str(_cfg_saved["frases"]))
     frases_label.grid(row=8, column=1, sticky="e", padx=10)
 
     def on_frases(val):
         frases_label.configure(text=str(int(val)))
 
     frases_slider = ctk.CTkSlider(frame, from_=1, to=12, number_of_steps=11, command=on_frases)
-    frases_slider.set(5)
+    frases_slider.set(_cfg_saved["frases"])
     frases_slider.grid(row=9, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
 
     # ── Cantidad de scroll ──────────────────────────────────
     ctk.CTkLabel(frame, text="Cantidad de scroll por acción (pasos)", font=ctk.CTkFont(weight="bold")).grid(
         row=10, column=0, sticky="w", padx=10, pady=(4, 0))
-    scroll_pasos_label = ctk.CTkLabel(frame, text="40")
+    scroll_pasos_label = ctk.CTkLabel(frame, text=str(_cfg_saved["scroll_pasos"]))
     scroll_pasos_label.grid(row=10, column=1, sticky="e", padx=10)
 
     def on_scroll_pasos(val):
         scroll_pasos_label.configure(text=str(int(val)))
 
     scroll_pasos_slider = ctk.CTkSlider(frame, from_=5, to=100, number_of_steps=19, command=on_scroll_pasos)
-    scroll_pasos_slider.set(40)
+    scroll_pasos_slider.set(_cfg_saved["scroll_pasos"])
     scroll_pasos_slider.grid(row=11, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
 
     # ── Velocidad de scroll ─────────────────────────────────
     ctk.CTkLabel(frame, text="Velocidad de scroll (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
         row=12, column=0, sticky="w", padx=10, pady=(4, 0))
-    scroll_vel_label = ctk.CTkLabel(frame, text="3")
+    scroll_vel_label = ctk.CTkLabel(frame, text=str(_cfg_saved["scroll_vel"]))
     scroll_vel_label.grid(row=12, column=1, sticky="e", padx=10)
 
     def on_scroll_vel(val):
         scroll_vel_label.configure(text=str(int(val)))
 
     scroll_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_scroll_vel)
-    scroll_vel_slider.set(3)
+    scroll_vel_slider.set(_cfg_saved["scroll_vel"])
     scroll_vel_slider.grid(row=13, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
 
     # ── Toggles de acciones ─────────────────────────────────
@@ -1348,18 +1388,23 @@ def main():
         row=14, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
 
     toggle_mouse  = ctk.CTkSwitch(frame, text="Movimiento de mouse")
-    toggle_mouse.select()
+    if _cfg_saved["mouse_on"]:   toggle_mouse.select()
+    else:                        toggle_mouse.deselect()
     toggle_mouse.grid(row=15, column=0, columnspan=2, sticky="w", padx=18, pady=2)
 
     toggle_scroll = ctk.CTkSwitch(frame, text="Scroll")
-    toggle_scroll.select()
+    if _cfg_saved["scroll_on"]:  toggle_scroll.select()
+    else:                        toggle_scroll.deselect()
     toggle_scroll.grid(row=16, column=0, columnspan=2, sticky="w", padx=18, pady=2)
 
     toggle_teclado = ctk.CTkSwitch(frame, text="Teclado / Escritura")
-    toggle_teclado.select()
+    if _cfg_saved["teclado_on"]: toggle_teclado.select()
+    else:                        toggle_teclado.deselect()
     toggle_teclado.grid(row=17, column=0, columnspan=2, sticky="w", padx=18, pady=2)
 
     toggle_clicks = ctk.CTkSwitch(frame, text="Clicks")
+    if _cfg_saved["clicks_on"]:  toggle_clicks.select()
+    else:                        toggle_clicks.deselect()
     toggle_clicks.grid(row=18, column=0, columnspan=2, sticky="w", padx=18, pady=(2, 10))
 
     frame.grid_columnconfigure(0, weight=1)
@@ -1417,6 +1462,21 @@ def main():
             _cfg_teclado_on = toggle_teclado.get() == 1
             _cfg_clicks_on  = toggle_clicks.get() == 1
 
+            # Guardar configuración para la próxima sesión
+            guardar_config({
+                "actividad":    int(act_slider.get()),
+                "mouse_vel":    int(mouse_vel_slider.get()),
+                "mouse_n":      int(mouse_n_slider.get()),
+                "keys_vel":     int(keys_vel_slider.get()),
+                "frases":       int(frases_slider.get()),
+                "scroll_pasos": int(scroll_pasos_slider.get()),
+                "scroll_vel":   int(scroll_vel_slider.get()),
+                "mouse_on":     _cfg_mouse_on,
+                "scroll_on":    _cfg_scroll_on,
+                "teclado_on":   _cfg_teclado_on,
+                "clicks_on":    _cfg_clicks_on,
+            })
+
             _estado["activo"] = True
             _estado["t_act"]  = 0.0
             _estado["t_pau"]  = 0.0
@@ -1440,8 +1500,15 @@ def main():
 
     def _iniciar_con_delay():
         global _zona_segura
+        # Limpiar flag ANTES del countdown para que el reinicio funcione
+        detener.clear()
         for i in range(10, 0, -1):
             if detener.is_set():
+                # Countdown abortado — resetear UI
+                app.after(0, lambda: btn.configure(
+                    text="▶  INICIAR", fg_color="#2a7d4f", hover_color="#1f5e3a"))
+                app.after(0, lambda: status_label.configure(text="⏸  Detenido."))
+                _estado["activo"] = False
                 return
             if _cfg_clicks_on:
                 app.after(0, lambda i=i: status_label.configure(
