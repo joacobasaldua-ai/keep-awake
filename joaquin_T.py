@@ -1424,7 +1424,11 @@ def main():
             _estado["elapsed"] = 0
 
             btn.configure(text="⏹  DETENER", fg_color="#8b1a1a", hover_color="#6b1212")
-            status_label.configure(text="⏳  Iniciando en 10 segundos...\n   Cambiá a la ventana activa.")
+            clicks_on = toggle_clicks.get() == 1
+            if clicks_on:
+                status_label.configure(text="⏳  Iniciando en 10 segundos...\n   Posicioná el mouse donde querés los clicks\n   y cambiá a la ventana activa.")
+            else:
+                status_label.configure(text="⏳  Iniciando en 10 segundos...\n   Cambiá a la ventana activa.")
 
             _hilo_automatizacion = threading.Thread(target=_iniciar_con_delay, daemon=True)
             _hilo_automatizacion.start()
@@ -1435,13 +1439,20 @@ def main():
             status_label.configure(text="⏸  Detenido.")
 
     def _iniciar_con_delay():
+        global _zona_segura
         for i in range(10, 0, -1):
             if detener.is_set():
                 return
-            app.after(0, lambda i=i: status_label.configure(
-                text=f"⏳  Iniciando en {i}s...\n   Cambiá a la ventana activa."))
+            if _cfg_clicks_on:
+                app.after(0, lambda i=i: status_label.configure(
+                    text=f"⏳  Iniciando en {i}s...\n   Posicioná el mouse donde querés los clicks\n   y cambiá a la ventana activa."))
+            else:
+                app.after(0, lambda i=i: status_label.configure(
+                    text=f"⏳  Iniciando en {i}s...\n   Cambiá a la ventana activa."))
             time.sleep(1)
         if not detener.is_set():
+            # Captura la posición del mouse en este momento como zona segura
+            _zona_segura = pyautogui.position()
             _loop_automatizacion()
 
     btn.configure(command=toggle)
