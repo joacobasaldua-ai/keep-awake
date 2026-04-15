@@ -1,4 +1,3 @@
 @echo off
 cd /d "%~dp0"
-pythonw joaquin_T.py
-pause
+start "" pythonw joaquin_T.py
