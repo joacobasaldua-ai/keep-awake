@@ -1153,7 +1153,7 @@ _cfg_n_tramos_med   = 5
 _cfg_vel_teclado    = 0.110
 _cfg_n_frases_med   = 5
 _cfg_scroll_pasos   = 40    # pasos medios por acción de scroll
-_cfg_scroll_vel     = 0.18  # velocidad base del tick de scroll (s)
+_cfg_scroll_vel     = 0.10  # velocidad base del tick de scroll (s)
 _cfg_mouse_on       = True
 _cfg_scroll_on      = True
 _cfg_teclado_on     = True
@@ -1276,138 +1276,152 @@ def main():
 
     app = ctk.CTk()
     app.title("Joaquin")
-    app.geometry("420x680")
+    app.geometry("800x420")
     app.resizable(False, False)
 
     # ── Cargar configuración guardada ──────────────────────
     _cfg_saved = cargar_config()
 
     # ── Título ─────────────────────────────────────────────
-    ctk.CTkLabel(app, text="Joaquin", font=ctk.CTkFont(size=22, weight="bold")).pack(pady=(18, 2))
-    ctk.CTkLabel(app, text="Simulador de actividad humana", font=ctk.CTkFont(size=12),
-                 text_color="gray").pack(pady=(0, 14))
+    ctk.CTkLabel(app, text="Joaquin", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=(10, 0))
+    ctk.CTkLabel(app, text="Simulador de actividad humana", font=ctk.CTkFont(size=11),
+                 text_color="gray").pack(pady=(0, 6))
 
-    # ── Frame principal ────────────────────────────────────
-    frame = ctk.CTkScrollableFrame(app, width=380, height=380)
+    # ── Frame principal (2 columnas) ───────────────────────
+    frame = ctk.CTkFrame(app, corner_radius=10)
     frame.pack(padx=16, pady=0, fill="x")
+    frame.grid_columnconfigure(0, weight=1)
+    frame.grid_columnconfigure(1, weight=1)
+
+    left = ctk.CTkFrame(frame, fg_color="transparent")
+    left.grid(row=0, column=0, padx=(8, 4), pady=4, sticky="nsew")
+    left.grid_columnconfigure(0, weight=1)
+
+    right = ctk.CTkFrame(frame, fg_color="transparent")
+    right.grid(row=0, column=1, padx=(4, 8), pady=4, sticky="nsew")
+    right.grid_columnconfigure(0, weight=1)
+
+    # ══ COLUMNA IZQUIERDA ══════════════════════════════════
 
     # ── Actividad % ────────────────────────────────────────
-    ctk.CTkLabel(frame, text="% Actividad objetivo", font=ctk.CTkFont(weight="bold")).grid(
-        row=0, column=0, sticky="w", padx=10, pady=(10, 0))
-    act_label = ctk.CTkLabel(frame, text=f"{_cfg_saved['actividad']}%")
-    act_label.grid(row=0, column=1, sticky="e", padx=10, pady=(10, 0))
+    ctk.CTkLabel(left, text="% Actividad objetivo", font=ctk.CTkFont(weight="bold")).grid(
+        row=0, column=0, sticky="w", padx=6, pady=(8, 0))
+    act_label = ctk.CTkLabel(left, text=f"{_cfg_saved['actividad']}%")
+    act_label.grid(row=0, column=1, sticky="e", padx=6, pady=(8, 0))
 
     def on_act_slider(val):
-        v = int(val)
-        act_label.configure(text=f"{v}%")
+        act_label.configure(text=f"{int(val)}%")
 
-    act_slider = ctk.CTkSlider(frame, from_=50, to=95, number_of_steps=45, command=on_act_slider)
+    act_slider = ctk.CTkSlider(left, from_=50, to=95, number_of_steps=45, command=on_act_slider)
     act_slider.set(_cfg_saved["actividad"])
-    act_slider.grid(row=1, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+    act_slider.grid(row=1, column=0, columnspan=2, padx=6, pady=(2, 8), sticky="ew")
 
     # ── Velocidad mouse ─────────────────────────────────────
-    ctk.CTkLabel(frame, text="Velocidad mouse (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
-        row=2, column=0, sticky="w", padx=10, pady=(4, 0))
-    mouse_vel_label = ctk.CTkLabel(frame, text=str(_cfg_saved["mouse_vel"]))
-    mouse_vel_label.grid(row=2, column=1, sticky="e", padx=10)
+    ctk.CTkLabel(left, text="Velocidad mouse (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
+        row=2, column=0, sticky="w", padx=6, pady=(4, 0))
+    mouse_vel_label = ctk.CTkLabel(left, text=str(_cfg_saved["mouse_vel"]))
+    mouse_vel_label.grid(row=2, column=1, sticky="e", padx=6)
 
     def on_mouse_vel(val):
         mouse_vel_label.configure(text=str(int(val)))
 
-    mouse_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_mouse_vel)
+    mouse_vel_slider = ctk.CTkSlider(left, from_=1, to=5, number_of_steps=4, command=on_mouse_vel)
     mouse_vel_slider.set(_cfg_saved["mouse_vel"])
-    mouse_vel_slider.grid(row=3, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+    mouse_vel_slider.grid(row=3, column=0, columnspan=2, padx=6, pady=(2, 8), sticky="ew")
 
     # ── Movimientos por acción ──────────────────────────────
-    ctk.CTkLabel(frame, text="Movimientos de mouse por acción", font=ctk.CTkFont(weight="bold")).grid(
-        row=4, column=0, sticky="w", padx=10, pady=(4, 0))
-    mouse_n_label = ctk.CTkLabel(frame, text=str(_cfg_saved["mouse_n"]))
-    mouse_n_label.grid(row=4, column=1, sticky="e", padx=10)
+    ctk.CTkLabel(left, text="Movimientos de mouse por acción", font=ctk.CTkFont(weight="bold")).grid(
+        row=4, column=0, sticky="w", padx=6, pady=(4, 0))
+    mouse_n_label = ctk.CTkLabel(left, text=str(_cfg_saved["mouse_n"]))
+    mouse_n_label.grid(row=4, column=1, sticky="e", padx=6)
 
     def on_mouse_n(val):
         mouse_n_label.configure(text=str(int(val)))
 
-    mouse_n_slider = ctk.CTkSlider(frame, from_=2, to=10, number_of_steps=8, command=on_mouse_n)
+    mouse_n_slider = ctk.CTkSlider(left, from_=2, to=10, number_of_steps=8, command=on_mouse_n)
     mouse_n_slider.set(_cfg_saved["mouse_n"])
-    mouse_n_slider.grid(row=5, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+    mouse_n_slider.grid(row=5, column=0, columnspan=2, padx=6, pady=(2, 8), sticky="ew")
 
     # ── Velocidad teclado ───────────────────────────────────
-    ctk.CTkLabel(frame, text="Velocidad teclado (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
-        row=6, column=0, sticky="w", padx=10, pady=(4, 0))
-    keys_vel_label = ctk.CTkLabel(frame, text=str(_cfg_saved["keys_vel"]))
-    keys_vel_label.grid(row=6, column=1, sticky="e", padx=10)
+    ctk.CTkLabel(left, text="Velocidad teclado (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
+        row=6, column=0, sticky="w", padx=6, pady=(4, 0))
+    keys_vel_label = ctk.CTkLabel(left, text=str(_cfg_saved["keys_vel"]))
+    keys_vel_label.grid(row=6, column=1, sticky="e", padx=6)
 
     def on_keys_vel(val):
         keys_vel_label.configure(text=str(int(val)))
 
-    keys_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_keys_vel)
+    keys_vel_slider = ctk.CTkSlider(left, from_=1, to=5, number_of_steps=4, command=on_keys_vel)
     keys_vel_slider.set(_cfg_saved["keys_vel"])
-    keys_vel_slider.grid(row=7, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+    keys_vel_slider.grid(row=7, column=0, columnspan=2, padx=6, pady=(2, 8), sticky="ew")
+
+    # ══ COLUMNA DERECHA ════════════════════════════════════
 
     # ── Frases por escritura ────────────────────────────────
-    ctk.CTkLabel(frame, text="Frases por sesión de escritura", font=ctk.CTkFont(weight="bold")).grid(
-        row=8, column=0, sticky="w", padx=10, pady=(4, 0))
-    frases_label = ctk.CTkLabel(frame, text=str(_cfg_saved["frases"]))
-    frases_label.grid(row=8, column=1, sticky="e", padx=10)
+    ctk.CTkLabel(right, text="Frases por sesión de escritura", font=ctk.CTkFont(weight="bold")).grid(
+        row=0, column=0, sticky="w", padx=6, pady=(8, 0))
+    frases_label = ctk.CTkLabel(right, text=str(_cfg_saved["frases"]))
+    frases_label.grid(row=0, column=1, sticky="e", padx=6, pady=(8, 0))
 
     def on_frases(val):
         frases_label.configure(text=str(int(val)))
 
-    frases_slider = ctk.CTkSlider(frame, from_=1, to=12, number_of_steps=11, command=on_frases)
+    frases_slider = ctk.CTkSlider(right, from_=1, to=12, number_of_steps=11, command=on_frases)
     frases_slider.set(_cfg_saved["frases"])
-    frases_slider.grid(row=9, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+    frases_slider.grid(row=1, column=0, columnspan=2, padx=6, pady=(2, 8), sticky="ew")
 
     # ── Cantidad de scroll ──────────────────────────────────
-    ctk.CTkLabel(frame, text="Cantidad de scroll por acción (pasos)", font=ctk.CTkFont(weight="bold")).grid(
-        row=10, column=0, sticky="w", padx=10, pady=(4, 0))
-    scroll_pasos_label = ctk.CTkLabel(frame, text=str(_cfg_saved["scroll_pasos"]))
-    scroll_pasos_label.grid(row=10, column=1, sticky="e", padx=10)
+    ctk.CTkLabel(right, text="Cantidad de scroll por acción (pasos)", font=ctk.CTkFont(weight="bold")).grid(
+        row=2, column=0, sticky="w", padx=6, pady=(4, 0))
+    scroll_pasos_label = ctk.CTkLabel(right, text=str(_cfg_saved["scroll_pasos"]))
+    scroll_pasos_label.grid(row=2, column=1, sticky="e", padx=6)
 
     def on_scroll_pasos(val):
         scroll_pasos_label.configure(text=str(int(val)))
 
-    scroll_pasos_slider = ctk.CTkSlider(frame, from_=5, to=100, number_of_steps=19, command=on_scroll_pasos)
+    scroll_pasos_slider = ctk.CTkSlider(right, from_=5, to=100, number_of_steps=19, command=on_scroll_pasos)
     scroll_pasos_slider.set(_cfg_saved["scroll_pasos"])
-    scroll_pasos_slider.grid(row=11, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+    scroll_pasos_slider.grid(row=3, column=0, columnspan=2, padx=6, pady=(2, 8), sticky="ew")
 
     # ── Velocidad de scroll ─────────────────────────────────
-    ctk.CTkLabel(frame, text="Velocidad de scroll (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
-        row=12, column=0, sticky="w", padx=10, pady=(4, 0))
-    scroll_vel_label = ctk.CTkLabel(frame, text=str(_cfg_saved["scroll_vel"]))
-    scroll_vel_label.grid(row=12, column=1, sticky="e", padx=10)
+    ctk.CTkLabel(right, text="Velocidad de scroll (1=rápido, 5=lento)", font=ctk.CTkFont(weight="bold")).grid(
+        row=4, column=0, sticky="w", padx=6, pady=(4, 0))
+    scroll_vel_label = ctk.CTkLabel(right, text=str(_cfg_saved["scroll_vel"]))
+    scroll_vel_label.grid(row=4, column=1, sticky="e", padx=6)
 
     def on_scroll_vel(val):
         scroll_vel_label.configure(text=str(int(val)))
 
-    scroll_vel_slider = ctk.CTkSlider(frame, from_=1, to=5, number_of_steps=4, command=on_scroll_vel)
+    scroll_vel_slider = ctk.CTkSlider(right, from_=1, to=5, number_of_steps=4, command=on_scroll_vel)
     scroll_vel_slider.set(_cfg_saved["scroll_vel"])
-    scroll_vel_slider.grid(row=13, column=0, columnspan=2, padx=10, pady=(2, 10), sticky="ew")
+    scroll_vel_slider.grid(row=5, column=0, columnspan=2, padx=6, pady=(2, 8), sticky="ew")
 
-    # ── Toggles de acciones ─────────────────────────────────
-    ctk.CTkLabel(frame, text="Acciones habilitadas", font=ctk.CTkFont(weight="bold")).grid(
-        row=14, column=0, columnspan=2, sticky="w", padx=10, pady=(8, 4))
+    # ── Toggles de acciones (2x2 horizontal) ───────────────
+    ctk.CTkLabel(right, text="Acciones habilitadas", font=ctk.CTkFont(weight="bold")).grid(
+        row=6, column=0, columnspan=2, sticky="w", padx=6, pady=(4, 2))
 
-    toggle_mouse  = ctk.CTkSwitch(frame, text="Movimiento de mouse")
+    toggles_frame = ctk.CTkFrame(right, fg_color="transparent")
+    toggles_frame.grid(row=7, column=0, columnspan=2, sticky="ew", padx=6, pady=(0, 8))
+
+    toggle_mouse = ctk.CTkSwitch(toggles_frame, text="Mouse")
     if _cfg_saved["mouse_on"]:   toggle_mouse.select()
     else:                        toggle_mouse.deselect()
-    toggle_mouse.grid(row=15, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+    toggle_mouse.grid(row=0, column=0, padx=(0, 12), pady=2, sticky="w")
 
-    toggle_scroll = ctk.CTkSwitch(frame, text="Scroll")
+    toggle_scroll = ctk.CTkSwitch(toggles_frame, text="Scroll")
     if _cfg_saved["scroll_on"]:  toggle_scroll.select()
     else:                        toggle_scroll.deselect()
-    toggle_scroll.grid(row=16, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+    toggle_scroll.grid(row=0, column=1, padx=(0, 12), pady=2, sticky="w")
 
-    toggle_teclado = ctk.CTkSwitch(frame, text="Teclado / Escritura")
+    toggle_teclado = ctk.CTkSwitch(toggles_frame, text="Teclado")
     if _cfg_saved["teclado_on"]: toggle_teclado.select()
     else:                        toggle_teclado.deselect()
-    toggle_teclado.grid(row=17, column=0, columnspan=2, sticky="w", padx=18, pady=2)
+    toggle_teclado.grid(row=1, column=0, padx=(0, 12), pady=2, sticky="w")
 
-    toggle_clicks = ctk.CTkSwitch(frame, text="Clicks")
+    toggle_clicks = ctk.CTkSwitch(toggles_frame, text="Clicks")
     if _cfg_saved["clicks_on"]:  toggle_clicks.select()
     else:                        toggle_clicks.deselect()
-    toggle_clicks.grid(row=18, column=0, columnspan=2, sticky="w", padx=18, pady=(2, 10))
-
-    frame.grid_columnconfigure(0, weight=1)
+    toggle_clicks.grid(row=1, column=1, padx=(0, 12), pady=2, sticky="w")
 
     # ── Status box ─────────────────────────────────────────
     status_frame = ctk.CTkFrame(app, corner_radius=10)
@@ -1455,7 +1469,7 @@ def main():
 
             _cfg_scroll_pasos = int(scroll_pasos_slider.get())
             sv = int(scroll_vel_slider.get())
-            _cfg_scroll_vel   = [0.07, 0.12, 0.18, 0.26, 0.38][sv - 1]
+            _cfg_scroll_vel   = [0.03, 0.06, 0.10, 0.15, 0.22][sv - 1]
 
             _cfg_mouse_on   = toggle_mouse.get() == 1
             _cfg_scroll_on  = toggle_scroll.get() == 1
