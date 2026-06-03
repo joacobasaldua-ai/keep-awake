@@ -1276,7 +1276,7 @@ def main():
 
     app = ctk.CTk()
     app.title("Joaquin")
-    app.geometry("800x420")
+    app.geometry("800x480")
     app.resizable(False, False)
 
     # ── Cargar configuración guardada ──────────────────────
