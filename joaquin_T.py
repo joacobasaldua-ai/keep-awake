@@ -840,8 +840,8 @@ def pausa_lectora(pct_pausa=50.0, dur_accion=6.0, t_act=0.0, t_pau=0.0):
 # SELECCIÓN DE ACCIÓN
 # ─────────────────────────────────────────────
 
-ACCIONES_BASE  = ["escritura", "scroll", "teclas", "mouse", "combo", "pestana", "nada"]
-PESOS_BASE     = [  0.10,       0.28,    0.08,     0.36,    0.10,   0.06,      0.02 ]
+ACCIONES_BASE  = ["escritura", "scroll", "teclas", "mouse", "combo", "pestana", "click", "nada"]
+PESOS_BASE     = [  0.10,       0.26,    0.08,     0.34,    0.09,   0.06,      0.05,  0.02 ]
 
 # ── Ventana de preferencia input: mouse vs teclado ──
 # Cada ventana sesga los pesos hacia mouse o teclado.
@@ -891,20 +891,22 @@ _scroll_acumulado = 0  # positivo = abajo, negativo = arriba
 # Un humano real tiene flujos naturales: scroll → pausa → scroll,
 # escritura → pausa → mouse (para reposicionar), etc.
 _TRANSICION_ACCIONES = {
-    "escritura": {"escritura": 0.10, "scroll": 0.20, "teclas": 0.12,
-                  "mouse": 0.28, "combo": 0.10, "pestana": 0.10, "nada": 0.10},
-    "scroll":    {"escritura": 0.12, "scroll": 0.16, "teclas": 0.10,
-                  "mouse": 0.32, "combo": 0.10, "pestana": 0.10, "nada": 0.10},
-    "teclas":    {"escritura": 0.15, "scroll": 0.16, "teclas": 0.07,
-                  "mouse": 0.32, "combo": 0.10, "pestana": 0.10, "nada": 0.10},
-    "mouse":     {"escritura": 0.15, "scroll": 0.22, "teclas": 0.12,
-                  "mouse": 0.18, "combo": 0.12, "pestana": 0.12, "nada": 0.09},
-    "combo":     {"escritura": 0.15, "scroll": 0.18, "teclas": 0.10,
-                  "mouse": 0.28, "combo": 0.07, "pestana": 0.12, "nada": 0.10},
-    "pestana":   {"escritura": 0.12, "scroll": 0.25, "teclas": 0.10,
-                  "mouse": 0.30, "combo": 0.10, "pestana": 0.03, "nada": 0.10},
-    "nada":      {"escritura": 0.15, "scroll": 0.20, "teclas": 0.10,
-                  "mouse": 0.30, "combo": 0.08, "pestana": 0.10, "nada": 0.07},
+    "escritura": {"escritura": 0.10, "scroll": 0.18, "teclas": 0.12,
+                  "mouse": 0.26, "combo": 0.10, "pestana": 0.09, "click": 0.05, "nada": 0.10},
+    "scroll":    {"escritura": 0.12, "scroll": 0.14, "teclas": 0.10,
+                  "mouse": 0.28, "combo": 0.10, "pestana": 0.09, "click": 0.07, "nada": 0.10},
+    "teclas":    {"escritura": 0.15, "scroll": 0.14, "teclas": 0.07,
+                  "mouse": 0.28, "combo": 0.10, "pestana": 0.09, "click": 0.07, "nada": 0.10},
+    "mouse":     {"escritura": 0.14, "scroll": 0.20, "teclas": 0.10,
+                  "mouse": 0.16, "combo": 0.11, "pestana": 0.10, "click": 0.10, "nada": 0.09},
+    "combo":     {"escritura": 0.14, "scroll": 0.16, "teclas": 0.10,
+                  "mouse": 0.25, "combo": 0.07, "pestana": 0.11, "click": 0.07, "nada": 0.10},
+    "pestana":   {"escritura": 0.12, "scroll": 0.22, "teclas": 0.10,
+                  "mouse": 0.26, "combo": 0.09, "pestana": 0.03, "click": 0.08, "nada": 0.10},
+    "click":     {"escritura": 0.12, "scroll": 0.20, "teclas": 0.10,
+                  "mouse": 0.28, "combo": 0.10, "pestana": 0.08, "click": 0.04, "nada": 0.08},
+    "nada":      {"escritura": 0.14, "scroll": 0.18, "teclas": 0.10,
+                  "mouse": 0.27, "combo": 0.08, "pestana": 0.09, "click": 0.06, "nada": 0.08},
 }
 
 _ultimo_accion = None
