@@ -1554,6 +1554,11 @@ def main():
                      f"   Actividad: {pct_a:.0f}%  |  {sym}\n"
                      f"   Humor: {mdesc}"
             )
+        else:
+            # Si el botón todavía dice DETENER, paró por F10 → resetear UI
+            if "DETENER" in btn.cget("text"):
+                btn.configure(text="▶  INICIAR", fg_color="#2a7d4f", hover_color="#1f5e3a")
+                status_label.configure(text="⏸  Detenido con F10. Listo para reiniciar.")
         app.after(800, actualizar_ui)
 
     actualizar_ui()
