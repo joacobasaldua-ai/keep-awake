@@ -986,6 +986,54 @@ def cambio_pestana():
     pyautogui.keyUp('ctrl')
 
 
+def pestana_larga():
+    """
+    Cambia a otra pestaña y se queda un rato LARGO (~5 min) como si
+    estuviera leyendo/trabajando ahí: scroll y mouse ocasionales,
+    pausas largas de lectura. Luego vuelve a la pestaña 1.
+    Simula el dip natural de actividad de irse a otra cosa un rato.
+    """
+    esc_t, _, _, _ = mood()
+    f = fatiga()
+
+    # Ir a otra pestaña (Ctrl+2 a Ctrl+4, más probable las cercanas)
+    pestana = random.choices(['2', '3', '4'], weights=[0.55, 0.30, 0.15], k=1)[0]
+    hold = max(0.025, min(0.080, random.gauss(0.045, 0.012)))
+    pyautogui.keyDown('ctrl')
+    time.sleep(hold)
+    pyautogui.press(pestana)
+    time.sleep(hold)
+    pyautogui.keyUp('ctrl')
+
+    # Duración total de la estadía: ~5 min con variación (3.5–6.5 min)
+    dur_total = gauss(5 * 60, 60, 3.5 * 60, 6.5 * 60)
+    fin = time.time() + dur_total
+
+    # Mientras esté en la otra pestaña: leer (pausas largas) con scroll/mouse
+    # ocasional, como un humano que lee un artículo o revisa otra herramienta.
+    while time.time() < fin and not detener.is_set():
+        # Pausa de lectura larga (10–35 s)
+        esperar(gauss(20 * esc_t * f, 7, 10, 35))
+        if detener.is_set() or time.time() >= fin:
+            break
+        # Actividad ligera: casi siempre scroll (leyendo), a veces mouse
+        if random.random() < 0.75:
+            scroll_suave()
+        else:
+            movimiento_mouse()
+
+    if detener.is_set():
+        return
+
+    # Volver a la pestaña 1 con Ctrl+1
+    hold = max(0.025, min(0.080, random.gauss(0.045, 0.012)))
+    pyautogui.keyDown('ctrl')
+    time.sleep(hold)
+    pyautogui.press('1')
+    time.sleep(hold)
+    pyautogui.keyUp('ctrl')
+
+
 def elegir_accion():
     """
     Selecciona acción usando una mezcla de:
@@ -1193,6 +1241,8 @@ def _loop_automatizacion():
     ciclos = 0
 
     proximo_break = time.time() + gauss(60 * 60, 10 * 60, 45 * 60, 80 * 60)
+    # Pestaña larga (~5 min en otra pestaña) cada ~1 hora con variación
+    proxima_pestana_larga = time.time() + gauss(60 * 60, 12 * 60, 40 * 60, 85 * 60)
 
     while not detener.is_set():
         ciclos += 1
@@ -1203,6 +1253,15 @@ def _loop_automatizacion():
             esperar(dur_break)
             t_pau += time.time() - t0_break
             proximo_break = time.time() + gauss(60 * 60, 10 * 60, 45 * 60, 80 * 60)
+            if detener.is_set():
+                break
+
+        if time.time() >= proxima_pestana_larga:
+            t0_pl = time.time()
+            _estado["ultimo_sym"] = "[⇥] En otra pestaña (rato largo)"
+            pestana_larga()
+            t_act += time.time() - t0_pl
+            proxima_pestana_larga = time.time() + gauss(60 * 60, 12 * 60, 40 * 60, 85 * 60)
             if detener.is_set():
                 break
 
