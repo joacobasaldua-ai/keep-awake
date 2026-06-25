@@ -1173,6 +1173,7 @@ _CFG_DEFAULTS = {
     "scroll_on":     True,
     "teclado_on":    True,
     "clicks_on":     False,
+    "modo_lento":    False,
 }
 
 def guardar_config(cfg: dict):
@@ -1208,6 +1209,7 @@ _cfg_mouse_on       = True
 _cfg_scroll_on      = True
 _cfg_teclado_on     = True
 _cfg_clicks_on      = False
+_cfg_modo_lento     = False  # solo mueve el mouse lento cada ~5 min
 
 # ─────────────────────────────────────────────
 # ESTADO COMPARTIDO PARA LA GUI
@@ -1224,6 +1226,55 @@ _estado = {
 _hilo_automatizacion = None
 
 
+def _loop_modo_lento(inicio):
+    """
+    Modo minimalista: solo mueve el mouse muy lento (duración media ~10s)
+    cada ~5 min de media. Nada de teclado, scroll ni pestañas.
+    Pensado para mantener la actividad al mínimo imprescindible.
+    """
+    ciclos = 0
+    t_act = 0.0
+    t_pau = 0.0
+    w, h = pyautogui.size()
+
+    while not detener.is_set():
+        ciclos += 1
+
+        # Movimiento de mouse muy lento (media 10s, rango ~6–16s)
+        x, y = pyautogui.position()
+        dx = gauss(0, 280, -550, 550)
+        dy = gauss(0, 200, -400, 400)
+        nx = int(max(100, min(w - 100, x + dx)))
+        ny = int(max(100, min(h - 100, y + dy)))
+        dur = gauss(10.0, 2.5, 6.0, 16.0)
+
+        _estado["ultimo_sym"] = "[~] Mouse lento"
+        t0 = time.time()
+        _mover_mouse_bezier(x, y, nx, ny, dur)
+        t_act += time.time() - t0
+
+        if detener.is_set():
+            break
+
+        # Espera larga hasta el próximo movimiento (media ~5 min, rango 2.5–8 min)
+        espera = gauss(5 * 60, 80, 2.5 * 60, 8 * 60)
+
+        _estado["t_act"]      = t_act
+        _estado["t_pau"]      = t_pau
+        _estado["ciclos"]     = ciclos
+        _estado["mood_desc"]  = "modo lento"
+        _estado["elapsed"]    = int(time.time() - inicio)
+
+        t0p = time.time()
+        esperar(espera)
+        t_pau += time.time() - t0p
+
+        _estado["t_pau"]   = t_pau
+        _estado["elapsed"] = int(time.time() - inicio)
+
+    _estado["activo"] = False
+
+
 def _loop_automatizacion():
     """Loop principal que corre en un hilo separado."""
     global _inicio_global, _cfg_pico_activo, _cfg_pico_pasivo
@@ -1231,6 +1282,7 @@ def _loop_automatizacion():
     global _cfg_vel_teclado, _cfg_n_frases_med
     global _cfg_scroll_pasos, _cfg_scroll_vel
     global _cfg_mouse_on, _cfg_scroll_on, _cfg_teclado_on, _cfg_clicks_on
+    global _cfg_modo_lento
 
     iniciar_listener()
 
@@ -1239,6 +1291,11 @@ def _loop_automatizacion():
     t_act  = 0.0
     t_pau  = 0.0
     ciclos = 0
+
+    # ── MODO LENTO: solo mueve el mouse muy lento (~10s) cada ~5 min ──
+    if _cfg_modo_lento:
+        _loop_modo_lento(inicio)
+        return
 
     proximo_break = time.time() + gauss(60 * 60, 10 * 60, 45 * 60, 80 * 60)
     # Pestaña larga (~5 min en otra pestaña) cada ~1 hora con variación
@@ -1337,7 +1394,7 @@ def main():
 
     app = ctk.CTk()
     app.title("Joaquin")
-    app.geometry("800x480")
+    app.geometry("800x520")
     app.resizable(False, False)
 
     # ── Cargar configuración guardada ──────────────────────
@@ -1484,6 +1541,15 @@ def main():
     else:                        toggle_clicks.deselect()
     toggle_clicks.grid(row=1, column=1, padx=(0, 12), pady=2, sticky="w")
 
+    # ── Modo lento (solo mouse cada ~5 min) ────────────────
+    toggle_lento = ctk.CTkSwitch(
+        toggles_frame,
+        text="Modo lento (solo mouse, ~5 min)",
+        font=ctk.CTkFont(size=12, weight="bold"))
+    if _cfg_saved.get("modo_lento", False): toggle_lento.select()
+    else:                                   toggle_lento.deselect()
+    toggle_lento.grid(row=2, column=0, columnspan=2, padx=(0, 12), pady=(6, 2), sticky="w")
+
     # ── Status box ─────────────────────────────────────────
     status_frame = ctk.CTkFrame(app, corner_radius=10)
     status_frame.pack(padx=16, pady=10, fill="x")
@@ -1511,6 +1577,7 @@ def main():
         global _cfg_vel_teclado, _cfg_n_frases_med
         global _cfg_scroll_pasos, _cfg_scroll_vel
         global _cfg_mouse_on, _cfg_scroll_on, _cfg_teclado_on, _cfg_clicks_on
+        global _cfg_modo_lento
 
         if not _estado["activo"]:
             # Leer configuración de la GUI
@@ -1536,6 +1603,7 @@ def main():
             _cfg_scroll_on  = toggle_scroll.get() == 1
             _cfg_teclado_on = toggle_teclado.get() == 1
             _cfg_clicks_on  = toggle_clicks.get() == 1
+            _cfg_modo_lento = toggle_lento.get() == 1
 
             # Guardar configuración para la próxima sesión
             guardar_config({
@@ -1550,6 +1618,7 @@ def main():
                 "scroll_on":    _cfg_scroll_on,
                 "teclado_on":   _cfg_teclado_on,
                 "clicks_on":    _cfg_clicks_on,
+                "modo_lento":   _cfg_modo_lento,
             })
 
             _estado["activo"] = True
