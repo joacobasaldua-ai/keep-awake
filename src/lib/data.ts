@@ -9,4 +9,4 @@ export const initialProducts: Product[] = [
   },
 ];
 
-export const appName = "RetiroApp";
+export const appName = "skipit";
