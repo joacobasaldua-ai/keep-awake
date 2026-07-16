@@ -8,5 +8,3 @@ export const initialProducts: Product[] = [
     logoLetter: "R",
   },
 ];
-
-export const appName = "skipit";
